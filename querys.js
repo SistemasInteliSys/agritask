@@ -46,15 +46,17 @@ async function listarProducao(dtIni, dtFin) {
         const rows = await wrapper.executeResultSet(
             `SELECT 
             TO_CHAR(DTNEG, 'YYYY-MM-DD') || ' ' || (substr(LPAD(NVL(HRMOV,0), 6, 0), 1, 2) || ':' ||  substr(LPAD(NVL(HRMOV,0), 6, 0), 3, 2) || ':' ||  substr(LPAD(NVL(HRMOV,0), 6, 0), 5, 2))  A_DATE,
-            REPLACE(FAZ.NOMEPARC, 'FAZENDA ', '') AS B_Fazenda,
+            REPLACE(TRANSLATE(FAZ.NOMEPARC,
+                  'ŠŽšžŸÁÇÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕËÜÏÖÑÝåáçéíóúàèìòùâêîôûãõëüïöñýÿ',
+                  'SZszYACEIOUAEIOUAEIOUAOEUIONYaaceiouaeiouaeiouaoeuionyy'), 'FAZENDA ', '') AS B_Fazenda,
             PRJ.CODPROJ C_TALHAO,
             '' AS D_CULTURA,
-            CASE WHEN ITE.CODPROD = 3880 THEN 'ML214IG1I' WHEN ITE.CODPROD = 3881 THEN 'ML214IG2I' ELSE 'ML214IGLI' END E_MEDICAO,
+            CASE WHEN ITE.CODPROD IN (3880,14061) THEN 'ML214IG1I' WHEN ITE.CODPROD IN (3881,12419,14060) THEN 'ML214IG2I' ELSE 'ML214IGLI' END E_MEDICAO,
             (SELECT OBSERVACAO FROM TGFCAB CAB WHERE CAB.NUNOTA = ITE.NUNOTA AND ROWNUM = 1) F_NOTAS,
             QTDENTRADA ritems,
             ITE.NUNOTA erp_record_code	
             FROM VAD_ITENSRASTREABILIDADE ITE
-            JOIN TGFPRO PRO ON PRO.CODPROD = ITE.CODPROD AND PRO.USOPROD IN ('V') 
+            JOIN TGFPRO PRO ON PRO.CODPROD = ITE.CODPROD 
             JOIN TCSPRJ PRJ ON PRJ.CODPROJ = ITE.CODPROJ AND PRJ.ANALITICO = 'S'
             LEFT JOIN TGFPAR FAZ ON FAZ.CODPARC = PRJ.AD_CODFAZ 
             LEFT JOIN TGFPRO CUL ON CUL.CODPROD = PRJ.CODPROD

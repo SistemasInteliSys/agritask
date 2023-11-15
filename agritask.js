@@ -46,54 +46,77 @@ Date.prototype.formated = function() {
          ].join('/');
 };
 
+Date.prototype.fileFormated = function() {
+    var mm = this.getMonth() + 1; // getMonth() is zero-based
+    var dd = this.getDate();
+
+    return [(dd>9 ? '' : '0') + dd,
+            (mm>9 ? '' : '0') + mm,
+            this.getFullYear()
+            ].join('_');
+};
+
 const generateAndSendCsv = async () => {
     try{
         let dtFin = new Date(Date.now());
-        dtFin.setHours(-3,0,0,0);
         let dtIni = new Date(dtFin - (24 * 60 * 60 * 1000));
         let dados = await querys.listarQuimicos(dtIni.formated(), dtFin.formated())
         let csv = new ObjectsToCsv(dados);
-        // let dtFinStr = dtFin.toLocaleString('pt-br', {
-        //     day: 'numeric',
-        //     year: 'numeric',
-        //     month: 'numeric',
-        //     hour: 'numeric',
-        //     minute: 'numeric',
-        //     second: 'numeric',
-        // }).replace(/\//g, '_')
-        await csv.toDisk(`./csv/quimicos.csv`)
+        
+        await csv.toDisk(`./csv/quimicos_${dtFin.fileFormated()}.csv`)
         let formQuimicos = new FormData();
-        formQuimicos.append('file', fs.createReadStream(`./csv/quimicos.csv`));
-        formQuimicos.append('wskey', '11f89fe4d9ac808734671c3338e1c6cc');
-        formQuimicos.append('class', 'com.scantask.tms.importdata.ScriptImportActivities_WithChemicalsMaterials');
-        formQuimicos.append('project', '72162695857438726')
+        formQuimicos.append('file', fs.createReadStream(`./csv/quimicos_${dtFin.fileFormated()}.csv`));
         console.log('enviando');
-        let response = await axios.post('https://za.agritask.com/s/import/do', formQuimicos, {
+        let response = await axios.post('https://za.agritask.com/s/api/private/imports/v4', formQuimicos, {
+            params: {
+                project: '72162695857438726',
+                importClass: 'com.scantask.tms.importdata.ScriptImportActivities_WithChemicalsMaterials'
+            },
             headers: {
-                ...formQuimicos.getHeaders()
+                ...formQuimicos.getHeaders({'WEB-SERVICE-KEY': '11f89fe4d9ac808734671c3338e1c6cc'})
             }
         })
-        setLog(getTodayDateHour(), response.data);
+        await setLogForRequest(response.data.importId)
         setLog(getTodayDateHour(), '---------------------------------------------------');
         dados = await querys.listarProducao(dtIni.formated(), dtFin.formated())
         csv = new ObjectsToCsv(dados)
-        await csv.toDisk(`./csv/producao.csv`)
+        await csv.toDisk(`./csv/producao_${dtFin.fileFormated()}.csv`)
         let formProducao = new FormData();
-        formProducao.append('file', fs.createReadStream(`./csv/producao.csv`));
-        formProducao.append('wskey', '11f89fe4d9ac808734671c3338e1c6cc');
-        formProducao.append('class', 'com.scantask.tms.importdata.ScriptImportModelMeasurements_General');
-        formProducao.append('project', '72162695857438726');
-        response = await axios.post('https://za.agritask.com/s/import/do', formProducao, {
+        formProducao.append('file', fs.createReadStream(`./csv/producao_${dtFin.fileFormated()}.csv`));
+        response = await axios.post('https://za.agritask.com/s/api/private/imports/v4', formProducao, {
+            params: {
+                project: '72162695857438726',
+                importClass: 'com.scantask.tms.importdata.ScriptImportModelMeasurements_General'
+            },
             headers: {
-                ...formProducao.getHeaders()
+                ...formProducao.getHeaders({'WEB-SERVICE-KEY': '11f89fe4d9ac808734671c3338e1c6cc'}),
             }
+
         })
         console.log(response.data)
-        setLog(getTodayDateHour(), response.data);
+        await setLogForRequest(response.data.importId)
         setLog(getTodayDateHour(), '---------------------------------------------------');
     } catch (err) {
         console.log(err)
     }
+}
+
+const setLogForRequest = async (importId) => {
+    const response = await axios.get(`https://za.agritask.com/s/api/private/imports/v4/${importId}`, {
+        headers: {
+            'WEB-SERVICE-KEY': '11f89fe4d9ac808734671c3338e1c6cc'
+        }
+    })
+    const errorMessage = convertDataToErrorMessage(response.data.messages)
+    setLog(getTodayDateHour(), errorMessage);
+}
+
+const convertDataToErrorMessage = (data) => {
+    const errorMessages = '';
+    for(error of data){
+        errorMessages += `Erro na linha ${error.line}: ${error.message}\n `
+    }
+    return errorMessages
 }
 
 function getTodayDateHour() {

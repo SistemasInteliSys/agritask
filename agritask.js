@@ -66,7 +66,6 @@ const generateAndSendCsv = async () => {
         await csv.toDisk(`./csv/quimicos_${dtFin.fileFormated()}.csv`)
         let formQuimicos = new FormData();
         formQuimicos.append('file', fs.createReadStream(`./csv/quimicos_${dtFin.fileFormated()}.csv`));
-        console.log('enviando');
         let response = await axios.post('https://za.agritask.com/s/api/private/imports/v4', formQuimicos, {
             params: {
                 project: '72162695857438726',
@@ -76,8 +75,7 @@ const generateAndSendCsv = async () => {
                 ...formQuimicos.getHeaders({'WEB-SERVICE-KEY': '11f89fe4d9ac808734671c3338e1c6cc'})
             }
         })
-        await setLogForRequest(response.data.importId)
-        setLog(getTodayDateHour(), '---------------------------------------------------');
+        await setLogForRequest(response.data.importId, `logs_${dtFin.fileFormated()}`, "quimicos")
         dados = await querys.listarProducao(dtIni.formated(), dtFin.formated())
         csv = new ObjectsToCsv(dados)
         await csv.toDisk(`./csv/producao_${dtFin.fileFormated()}.csv`)
@@ -93,27 +91,26 @@ const generateAndSendCsv = async () => {
             }
 
         })
-        console.log(response.data)
-        await setLogForRequest(response.data.importId)
-        setLog(getTodayDateHour(), '---------------------------------------------------');
+        await setLogForRequest(response.data.importId, `logs_${dtFin.fileFormated()}`, "producao")
     } catch (err) {
         console.log(err)
     }
 }
 
-const setLogForRequest = async (importId) => {
+const setLogForRequest = async (importId, folder, fileName) => {
     const response = await axios.get(`https://za.agritask.com/s/api/private/imports/v4/${importId}`, {
         headers: {
             'WEB-SERVICE-KEY': '11f89fe4d9ac808734671c3338e1c6cc'
         }
     })
     const errorMessage = convertDataToErrorMessage(response.data.messages)
-    setLog(getTodayDateHour(), errorMessage);
+    setLog(getTodayDateHour(), errorMessage, folder, fileName);
 }
 
 const convertDataToErrorMessage = (data) => {
-    const errorMessages = '';
-    for(error of data){
+    let errorMessages = '';
+    for(let i = 0; i < data.length; i++){
+        const error = data[i];
         errorMessages += `Erro na linha ${error.line}: ${error.message}\n `
     }
     return errorMessages
@@ -140,8 +137,11 @@ function getTodayDateHour() {
     return todayDateHour
 }
 
-async function setLog(logDateHour, logText) {
-    fs.writeFileSync('./logs/log.txt', `${logDateHour}: ${logText}\n`, { flag: 'a' })
+async function setLog(logDateHour, logText, folderPath, fileName) {
+    if (!fs.existsSync(`./logs/${folderPath}`)){
+        fs.mkdirSync(`./logs/${folderPath}`);
+    }
+    fs.writeFileSync(`./logs/${folderPath}/${fileName}.txt`, `${logDateHour}: ${logText}\n\n`, { flag: 'a' })
 }
 
 // Abre porta para escutar requisições

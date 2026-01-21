@@ -4,7 +4,7 @@ async function listarQuimicos(dtIni, dtFin) {
     try {
         await wrapper.createDefaultPool(); // Would normally be done at process start
 
-        const rows = await wrapper.executeResultSet(
+        let rows = await wrapper.executeResultSet(
             `SELECT 
         	TO_CHAR(DTNEG, 'YYYY-MM-DD') || ' ' || (substr(LPAD(NVL(HRMOV,0), 6, 0), 1, 2) || ':' ||  substr(LPAD(NVL(HRMOV,0), 6, 0), 3, 2) || ':' ||  substr(LPAD(NVL(HRMOV,0), 6, 0), 5, 2))  A_DATE, 
         	REPLACE(FAZ.NOMEPARC, 'FAZENDA ', '') AS B_Fazenda,
@@ -22,14 +22,24 @@ async function listarQuimicos(dtIni, dtFin) {
             LEFT JOIN AD_DBAGRFINALIDADE FIN ON FIN.CODFINALIDADE = PRO.AD_CODFINALIDADE
             LEFT JOIN AD_DBAGRCLASSE CLA ON CLA.CODCLASSE = PRO.AD_CODCLASSE
             LEFT JOIN AD_DBAGRREQINS REQ ON REQ.NUNOTA = CAB.NUNOTA 
-	        WHERE CAB.STATUSNOTA  = 'L'
-	        AND (PRJ.CODPROJ BETWEEN 100000000 AND 199999999)
+            WHERE CAB.STATUSNOTA  = 'L'
+            AND (PRJ.CODPROJ BETWEEN 100000000 AND 199999999)
             AND (TRUNC(CAB.DTNEG) BETWEEN TO_DATE('${dtIni}', 'DD/MM/YYYY') AND TO_DATE('${dtFin}', 'DD/MM/YYYY'))
             ORDER BY CAB.DTNEG`, {},
             {
                 resultSet: true
             }
         );
+
+        rows = rows.map((row) => {
+            if(Number(row['I_IDPRODUTO']) == 10837 || Number(row['I_IDPRODUTO']) == 19352){
+                row['I_IDPRODUTO'] = 18953
+            } else if (Number(row['I_IDPRODUTO']) == 1040 || Number(row['I_IDPRODUTO']) == 1041
+            || Number(row['I_IDPRODUTO']) == 1042 || Number(row['I_IDPRODUTO']) == 1043) {
+                row['I_IDPRODUTO'] = 19355
+            }
+            return row;
+        });
 
         console.log('Retornados ' + rows.length + ' registros de insumos.');
         return rows;

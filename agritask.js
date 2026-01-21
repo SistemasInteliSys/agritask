@@ -109,9 +109,11 @@ const setLogForRequest = async (importId, folder, fileName) => {
 
 const convertDataToErrorMessage = (data) => {
     let errorMessages = '';
-    for(let i = 0; i < data.length; i++){
-        const error = data[i];
-        errorMessages += `Erro na linha ${error.line}: ${error.message}\n `
+    if(data != null){
+        for(let i = 0; i < data.length; i++){
+            const error = data[i];
+            errorMessages += `Erro na linha ${error.line}: ${error.message}\n `
+        }
     }
     return errorMessages
 }
